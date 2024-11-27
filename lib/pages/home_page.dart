@@ -41,12 +41,82 @@ class _HomePageState extends State<HomePage> {
             itemCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
-              return ProductTile(
-                product: product,
-                onDelete: () => _controller.removeProduct(index),
-                onEdit: (updatedProduct) {
-                  _controller.updateProduct(index, updatedProduct);
+              return Dismissible(
+                key: UniqueKey(),
+                background: Container(
+                  color: Colors.blue,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 16.0),
+                  child: const Icon(Icons.edit, color: Colors.white),
+                ),
+                secondaryBackground: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.startToEnd) {
+                    // Arrastou da esquerda para a direita (editar)
+                    showDialog(
+                      context: context,
+                      builder: (context) => ProductDialog(
+                        dialogTitle: 'Editar Produto',
+                        product: product,
+                        onSubmit: (name, value, quantity) {
+                          final updatedProduct = {
+                            'name': name,
+                            'value': value,
+                            'quantity': quantity,
+                          };
+                          _controller.updateProduct(index, updatedProduct);
+                        },
+                      ),
+                    );
+                    return false; // Não descarta o item
+                  } else if (direction == DismissDirection.endToStart) {
+                    // Arrastou da direita para a esquerda (excluir)
+                    bool confirmDeletion = await showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Confirmar exclusão'),
+                        content: Text(
+                            'Você tem certeza que deseja excluir o produto "${product['name']}"?'),
+                        actions: [
+                          TextButton(
+                            child: const Text('Cancelar'),
+                            onPressed: () => Navigator.of(context).pop(false),
+                          ),
+                          TextButton(
+                            child: const Text('Excluir'),
+                            onPressed: () => Navigator.of(context).pop(true),
+                          ),
+                        ],
+                      ),
+                    );
+                    return confirmDeletion;
+                  }
+                  return false;
                 },
+                onDismissed: (direction) {
+                  if (direction == DismissDirection.endToStart) {
+                    // Remove o item da lista
+                    _controller.removeProduct(index);
+                    // Exibe uma snackbar informando que o item foi removido
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${product['name']} foi excluído'),
+                      ),
+                    );
+                  }
+                },
+                child: ProductTile(
+                  product: product,
+                  onDelete: () => _controller.removeProduct(index),
+                  onEdit: (updatedProduct) {
+                    _controller.updateProduct(index, updatedProduct);
+                  },
+                ),
               );
             },
           );
